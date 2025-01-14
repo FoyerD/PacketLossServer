@@ -1,11 +1,33 @@
 import Parser
 import Colors
 import socket
+from math import ceil
 import threading
 import time
 import subprocess
 import ipaddress
 
+DATA_TO_SEND = 'SKIBIDI_DATA' #I'm sorry
+SERVER_PORT_UDP = 34340
+SERVER_PORT_TCP = 34341
+
+
+# -------helper functions---------
+def data_generator(data_to_send, num_bytes, size_part):
+    '''cyclic data generator
+    :param data_to_send: str, data to cycle
+    :param num_bytes: number of total bytes to send
+    :param size_part: the size of each part to yield'''
+    data_len = len(data_to_send)
+    curr_data = ''
+    i = 0
+    while num_bytes > 0:
+        while len(curr_data) < size_part and num_bytes > 0:
+            curr_data += data_to_send[i % data_len]
+            i += 1
+            num_bytes -= 1
+        yield curr_data
+        curr_data = ''
 
 def get_subnet_mask(ip):
     """Usess the ipconfig command and subproccess to return the subnet mask of the network of ip"""
@@ -19,43 +41,63 @@ def get_subnet_mask(ip):
 
 def get_broadcast_addr(ip, mask):
     """Returns the broadcast addr given an ip addr and subnetmask"""
-    return ipaddress.IPv4Network(ip + '/' + mask, False)
+    return str(ipaddress.IPv4Interface(ip + '/' + mask).network.broadcast_address)
+
+def start_thread(func, args):
+    """Generic method to start a thread"""
+    thread = threading.Thread(target=func, args=args)
+    thread.daemon = True  # Allow thread to exit when main program does
+    try:
+        thread.start()
+    except NameError:
+        return None
+    return thread
 
 
-def start_listen_tcp(port):
+# -------thread functions---------
+def listen_tcp(port):
     """Listens to incoming messages on the given port"""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock
-        sock.bind(('', port))
-        sock.accept()
-
-def start_tcp_thread(host, port):
-    """Start a that listens to incoming messages on tcp."""
-    broadcast_thread = threading.Thread(target=start_listen_tcp, args=(port))
-    broadcast_thread.daemon = True  # Allow thread to exit when main program does
     try:
-        broadcast_thread.start()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(('', port))
+            sock.accept()
     except NameError:
-        return None
-    return broadcast_thread
+        print(Colors.red_str(NameError))
 
-
-def start_listen_udp(port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(('', port))
-        while True:
-            # Wait for a message from a client
-            data, client_address = sock.recvfrom(Parser.PAYLOAD_SIZE)  # buffer size is 1024 bytes
-            print(f"Received message from {client_address}: {data.decode('utf-8')}")
-
-def start_udp_thread(host, port):
-    """Start a that listens to incoming messages on tcp."""
-    broadcast_thread = threading.Thread(target=start_listen_udp, args=(port))
-    broadcast_thread.daemon = True  # Allow thread to exit when main program does
+def listen_udp(port):
     try:
-        broadcast_thread.start()
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock: 
+            sock.bind(('', port))
+            while True:
+                # Wait for a message from a client
+                data, client_address = sock.recvfrom(Parser.REQUEST_HEADER_SIZE)  # buffer size is 1024 bytes
+                if(len(data) != Parser.REQUEST_HEADER_SIZE):
+                    #print(Colors.red_str(f"Error: size of request msg is not {Parser.REQUEST_HEADER_SIZE}"))
+                    continue
+                cookie, msg_type, file_size = Parser.unpack_request(data)
+                if(cookie != Parser.MAGIC_COOKIE or msg_type != Parser.REQUEST_TYPE):
+                    #print(Colors.red_str(f"Error: THE MAGIC COOKIE IS WRONG! ITS {cookie} != {Parser.MAGIC_COOKIE}"))
+                    continue
+                print(f"Received {Colors.yellow_str('[UDP]')} request from {Colors.blue_str(str(client_address))}")
+                start_thread(udp_upload, (sock, client_address, file_size))   
     except NameError:
-        return None
-    return broadcast_thread
+        print(Colors.red_str(NameError))
+
+def udp_upload(sock, dest_addr, size):
+    try:
+        seg_count = ceil(size / Parser.PAYLOAD_SIZE)
+        for i, segment in enumerate(data_generator(DATA_TO_SEND, size, Parser.PAYLOAD_SIZE)):
+            sock.sendto(Parser.pack_payload_tcp(seg_count, i, segment), dest_addr)
+    except NameError:
+        print(Colors.red_str(NameError))
+
+def tcp_upload(sock, size):
+    try:
+        seg_count = ceil(size / len(DATA_TO_SEND))
+        whole_data = (DATA_TO_SEND * seg_count)[:size]
+        sock.send()
+    except NameError:
+        print(Colors.red_str(NameError))
 
 def send_broadcast_message(message, port, interval):
     """Constantly sends message on udp through te given port every interval seconds"""
@@ -73,49 +115,39 @@ def send_broadcast_message(message, port, interval):
             print(NameError)
         time.sleep(interval)
 
-def start_broadcast_thread(message, port, interval):
-    """Start a thread to send broadcast messages."""
-    broadcast_thread = threading.Thread(target=send_broadcast_message, args=(message, port, interval))
-    broadcast_thread.daemon = True  # Allow thread to exit when main program does
-    try:
-        broadcast_thread.start()
-    except NameError:
-        return None
-    return broadcast_thread
 
 
-
+# -------main function---------
 def main():
     interval = 1  # Interval in seconds
 
     # Start the listening threads
-    tcp_thread = start_tcp_thread(SERVER_PORT_TCP)
+    tcp_thread = start_thread(listen_tcp, (SERVER_PORT_TCP, ))
     if(tcp_thread == None):
         print("Faild to start thread for listening on TCP port")
         return
 
-    udp_thread = start_udp_thread(SERVER_PORT_UDP)
+    udp_thread = start_thread(listen_udp, (SERVER_PORT_UDP, ))
     if(udp_thread == None):
         print("Faild to start thread for listening on UDP port")
         return
 
 
     # Start the broadcast thread
-    broadcast_thread = start_broadcast_thread(Parser.pack_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), SERVER_PORT_UDP, interval)
+    broadcast_thread = start_thread(send_broadcast_message, (Parser.pack_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), SERVER_PORT_UDP, interval))
     if(broadcast_thread == None):
         print("Faild to start thread for broadcasting")
         return
-    print('Server started, listening on IP address ' + Colors.blue_str(HOST))
+    print(f'Server started, listening on IP address {Colors.purple_str(HOST)}')
     broadcast_thread.join()
 
     
 
 
-
+# -------main condition---------
 if __name__ == "__main__":
-    SERVER_PORT_UDP = 3434
-    SERVER_PORT_TCP = 4343
     HOSTNAME = socket.gethostname()
     HOST = socket.gethostbyname(HOSTNAME)
     MASK = get_subnet_mask(HOST)   
     main()
+# -------end of file---------
