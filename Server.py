@@ -10,9 +10,10 @@ import ipaddress
 DATA_TO_SEND = 'SKIBIDI_DATA' #I'm sorry
 SERVER_PORT_UDP = 34340
 SERVER_PORT_TCP = 34341
+NUM_QUEUED_TCP = 5
 
 
-# -------helper functions---------
+# ---------------------helper functions-----------------------
 def data_generator(data_to_send, num_bytes, size_part):
     '''cyclic data generator
     :param data_to_send: str, data to cycle
@@ -54,13 +55,27 @@ def start_thread(func, args):
     return thread
 
 
-# -------thread functions---------
+# ---------------------thread functions-----------------------
 def listen_tcp(port):
     """Listens to incoming messages on the given port"""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind(('', port))
-            sock.accept()
+            sock.listen(NUM_QUEUED_TCP)
+            while True:
+                # Wait for a connection from a client
+                connection, client_addr = sock.accept()
+                data = connection.recv(Parser.REQUEST_HEADER_SIZE)  # buffer size is 1024 bytes
+                if(len(data) != Parser.REQUEST_HEADER_SIZE):
+                    #print(Colors.red_str(f"Error: size of request msg is not {Parser.REQUEST_HEADER_SIZE}"))
+                    continue
+                cookie, msg_type, file_size = Parser.unpack_request(data)
+                if(cookie != Parser.MAGIC_COOKIE or msg_type != Parser.REQUEST_TYPE):
+                    #print(Colors.red_str(f"Error: THE MAGIC COOKIE IS WRONG! ITS {cookie} != {Parser.MAGIC_COOKIE}"))
+                    continue
+                print(f"Received {Colors.red_str('[TCP]')} request from {Colors.blue_str(str(client_addr))}")
+                start_thread(tcp_upload, (sock, file_size))   
+
     except NameError:
         print(Colors.red_str(NameError))
 
@@ -117,7 +132,7 @@ def send_broadcast_message(message, port, interval):
 
 
 
-# -------main function---------
+# ---------------------main function---------------------
 def main():
     interval = 1  # Interval in seconds
 
