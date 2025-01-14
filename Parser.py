@@ -17,7 +17,7 @@ OFFER_HEADER_SIZE = 4+1+2+2
 REQUEST_HEADER_SIZE = 4+1+8
 PAYLOAD_HEADER_SIZE = 4+1+8+8
 
-
+PAYLOAD_SIZE = 1024
 
 def pack_offer(udp_port, tcp_port):
     '''
