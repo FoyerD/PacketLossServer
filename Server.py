@@ -38,7 +38,7 @@ def start_tcp_thread(host, port):
     return broadcast_thread
 
 
-def start_listen_udp(hport):
+def start_listen_udp(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('', port))
     sock.accept()
@@ -64,7 +64,7 @@ def send_broadcast_message(message, port, interval):
     while True:
         # Send the broadcast message
         try:
-            sock.sendto(message.encode(), (get_broadcast_addr(HOST, MASK), port))
+            sock.sendto(message, (get_broadcast_addr(HOST, MASK), port))
         except NameError:
             print(NameError)
         time.sleep(interval)
@@ -97,7 +97,7 @@ def main():
 
 
     # Start the broadcast thread
-    broadcast_thread = start_broadcast_thread(Parser.make_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), SERVER_PORT_UDP, interval)
+    broadcast_thread = start_broadcast_thread(Parser.pack_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), SERVER_PORT_UDP, interval)
     if(broadcast_thread == None):
         print("Faild to start thread for broadcasting")
         return
