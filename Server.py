@@ -21,17 +21,38 @@ def get_broadcast_addr(ip, mask):
     return ipaddress.IPv4Network(ip + '/' + mask, False)
 
 
-def start_listen_tcp(host, port):
+def start_listen_tcp(port):
+    """Listens to incoming messages on the given port"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((host, port))
+    sock.bind(('', port))
     sock.accept()
 
+def start_tcp_thread(host, port):
+    """Start a that listens to incoming messages on tcp."""
+    broadcast_thread = threading.Thread(target=start_listen_tcp, args=(port))
+    broadcast_thread.daemon = True  # Allow thread to exit when main program does
+    try:
+        broadcast_thread.start()
+    except NameError:
+        return None
+    return broadcast_thread
 
 
-def start_listen_udp(host, port):
+
+def start_listen_udp(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((host, port))
+    sock.bind(('', port))
     sock.accept()
+
+def start_udp_thread(host, port):
+    """Start a that listens to incoming messages on tcp."""
+    broadcast_thread = threading.Thread(target=start_listen_udp, args=(port))
+    broadcast_thread.daemon = True  # Allow thread to exit when main program does
+    try:
+        broadcast_thread.start()
+    except NameError:
+        return None
+    return broadcast_thread
 
 def send_broadcast_message(message, port, interval):
     """Constantly sends message on udp through te given port every interval seconds"""
@@ -44,7 +65,7 @@ def send_broadcast_message(message, port, interval):
     while True:
         # Send the broadcast message
         try:
-            sock.sendto(message.encode(), (get_broadcast_addr(HOST, MASK), port))
+            sock.sendto(message, (get_broadcast_addr(HOST, MASK), port))
         except NameError:
             print(NameError)
         time.sleep(interval)
@@ -64,16 +85,25 @@ def start_broadcast_thread(message, port, interval):
 def main():
     interval = 1  # Interval in seconds
 
-    # Start the listening sockets
-    tcp_thread = start_tcp_thread(HOST, SERVER_PORT_TCP)
-    udp_thread = start_udp_thread(HOST, SERVER_PORT_UDP)
+    # Start the listening threads
+    tcp_thread = start_tcp_thread(SERVER_PORT_TCP)
+    if(tcp_thread == None):
+        print("Faild to start thread for listening on TCP port")
+        return
+
+    udp_thread = start_udp_thread(SERVER_PORT_UDP)
+    if(udp_thread == None):
+        print("Faild to start thread for listening on UDP port")
+        return
+
 
     # Start the broadcast thread
-    broadcast_thread = start_broadcast_thread(Parser.make_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), SERVER_PORT_UDP, interval)
+    broadcast_thread = start_broadcast_thread(Parser.pack_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), SERVER_PORT_UDP, interval)
     if(broadcast_thread == None):
         print("Faild to start thread for broadcasting")
         return
     print('Server started, listening on IP address ' + Colors.blue_str(HOST))
+    broadcast_thread.join()
 
     
 
