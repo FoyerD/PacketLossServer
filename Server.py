@@ -6,6 +6,7 @@ import time
 import subprocess
 import ipaddress
 
+
 def get_subnet_mask(ip):
     """Usess the ipconfig command and subproccess to return the subnet mask of the network of ip"""
     proc = subprocess.Popen('ipconfig',stdout=subprocess.PIPE)
@@ -41,7 +42,10 @@ def start_tcp_thread(host, port):
 def start_listen_udp(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('', port))
-    sock.accept()
+    while True:
+        # Wait for a message from a client
+        data, client_address = sock.recvfrom(Parser.PAYLOAD)  # buffer size is 1024 bytes
+        print(f"Received message from {client_address}: {data.decode('utf-8')}")
 
 def start_udp_thread(host, port):
     """Start a that listens to incoming messages on tcp."""
