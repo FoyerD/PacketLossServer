@@ -1,3 +1,7 @@
-SERVER_PORT_UDP = 3434
-SERVER_PORT_TCP = 4343
+import struct
 MAGIC_COOKIE = 0xabcddcba
+OFFER_TYPE = 0x2
+
+def make_offer(udp_port, tcp_port):
+    return struct.pack('!IBHH', MAGIC_COOKIE, OFFER_TYPE, udp_port, tcp_port)
+
