@@ -24,9 +24,9 @@ def get_broadcast_addr(ip, mask):
 
 def start_listen_tcp(port):
     """Listens to incoming messages on the given port"""
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(('', port))
-    sock.accept()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock
+        sock.bind(('', port))
+        sock.accept()
 
 def start_tcp_thread(host, port):
     """Start a that listens to incoming messages on tcp."""
@@ -40,12 +40,12 @@ def start_tcp_thread(host, port):
 
 
 def start_listen_udp(port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('', port))
-    while True:
-        # Wait for a message from a client
-        data, client_address = sock.recvfrom(Parser.PAYLOAD)  # buffer size is 1024 bytes
-        print(f"Received message from {client_address}: {data.decode('utf-8')}")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(('', port))
+        while True:
+            # Wait for a message from a client
+            data, client_address = sock.recvfrom(Parser.PAYLOAD_SIZE)  # buffer size is 1024 bytes
+            print(f"Received message from {client_address}: {data.decode('utf-8')}")
 
 def start_udp_thread(host, port):
     """Start a that listens to incoming messages on tcp."""
