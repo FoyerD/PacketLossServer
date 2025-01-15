@@ -51,4 +51,4 @@ def unpack_request(msg):
     return struct.unpack(REQUEST_FORMAT, msg)
 
 def unpack_payload_tcp(msg):
-    return struct.unpack(PAYLOAD_FORMAT, msg[0:PAYLOAD_HEADER_SIZE]) + msg[PAYLOAD_HEADER_SIZE:]
+    return struct.unpack(PAYLOAD_FORMAT, msg[0:PAYLOAD_HEADER_SIZE]) + (msg[PAYLOAD_HEADER_SIZE:],)

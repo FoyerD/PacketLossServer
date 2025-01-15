@@ -73,7 +73,7 @@ def listen_tcp(port):
                     #print(Colors.red_str(f"Error: THE MAGIC COOKIE IS WRONG! ITS {cookie} != {Parser.MAGIC_COOKIE}"))
                     continue
                 print(f"Received {Colors.red_str('[TCP]')} request from {Colors.blue_str(str(client_addr))}")
-                start_thread(tcp_upload, (sock, file_size))   
+                start_thread(tcp_upload, (connection, file_size))   
 
     except NameError:
         print(Colors.red_str(NameError))
