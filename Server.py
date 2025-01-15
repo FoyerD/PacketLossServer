@@ -158,6 +158,8 @@ def main():
         return
     print(f'Server started, listening on IP address {Colors.purple_str(HOST)}')
     broadcast_thread.join()
+    udp_thread.join()
+    tcp_thread.join()
     
     tcp_sock.close()
     udp_sock.close()
