@@ -1,10 +1,15 @@
+import math
 import Parser
 import socket
 import Colors
 from Server import start_thread
 from Parser import CLIENT_PORT_UDP
+import threading
 import datetime
 from tqdm import tqdm
+
+curr_thread_udp = 0
+curr_thread_tcp = 0
 
 # ---------------------helper functions-----------------------
 def get_user_choices():
@@ -22,6 +27,8 @@ def get_user_choices():
 # ---------------------thread functions-----------------------
 def listen_offers(sock, data_size, num_udp, num_tcp):
     try:
+        global curr_thread_udp
+        global curr_thread_tcp
         threads = []
         # Wait for a message from a client
         data, server_address = sock.recvfrom(Parser.OFFER_HEADER_SIZE)  # buffer size is 1024 bytes
@@ -36,16 +43,18 @@ def listen_offers(sock, data_size, num_udp, num_tcp):
         print(f"Received offer from {Colors.purple_str(str(server_address))}")
         
         for i in range(num_udp):
-            threads.append(start_thread(download_udp, ((server_ip, server_udp_port), data_size)))
+            threads.append(start_thread(download_udp, ((server_ip, server_udp_port), data_size, curr_thread_udp)))
+            curr_thread_udp += 1
         for i in range(num_tcp):
-            threads.append(start_thread(download_udp, ((server_ip, server_tcp_port), data_size)))
+            threads.append(start_thread(download_tcp, ((server_ip, server_tcp_port), data_size, curr_thread_tcp)))
+            curr_thread_tcp += 1
                 
-    except NameError:
-        print(Colors.red_str(NameError))
+    except NameError as e:
+        print(Colors.red_str(e))
     finally:
         return threads
         
-def download_udp(dest_addr, data_size):
+def download_udp(dest_addr, data_size, thread_num):
     count_recieved = 0
     num_segs = -1
     expected_seg = 0
@@ -56,7 +65,7 @@ def download_udp(dest_addr, data_size):
         sock.settimeout(1)
         sock.sendto(Parser.pack_request(data_size), dest_addr)
         start_time = datetime.datetime.now()
-        for i in tqdm(range(data_size // (Parser.PAYLOAD_SIZE + Parser.PAYLOAD_HEADER_SIZE) + 1)):
+        for i in tqdm(range(math.ceil(data_size / (Parser.PAYLOAD_SIZE + Parser.PAYLOAD_HEADER_SIZE)))):
             try:
                 data, client_address = sock.recvfrom(Parser.PAYLOAD_SIZE + Parser.PAYLOAD_HEADER_SIZE)
             except socket.timeout:
@@ -66,7 +75,7 @@ def download_udp(dest_addr, data_size):
             if(len(data) < Parser.PAYLOAD_HEADER_SIZE):
                 #print(Colors.red_str(f"Error: size of payload msg is not {Parser.PAYLOAD_HEADER_SIZE + data_size - count_recieved}"))
                 continue
-            cookie, msg_type, segment_count, curr_segment, payload = Parser.unpack_payload_tcp(data)
+            cookie, msg_type, segment_count, curr_segment, payload = Parser.unpack_payload_udp(data)
             if(cookie != Parser.MAGIC_COOKIE or msg_type != Parser.PAYLOAD_TYPE):
                 #print(Colors.red_str(f"Error: THE MAGIC COOKIE IS WRONG! ITS {cookie} != {Parser.MAGIC_COOKIE}"))
                 continue
@@ -81,11 +90,19 @@ def download_udp(dest_addr, data_size):
             else:
                 #print(f"{str(sock.getsockname)}recived {Colors.red_str(str(curr_segment+1))}/{Colors.green_str(str(num_segs))}")
                 pass
-    print(data_size - count_recieved)
-    print(f"{str(sock.getsockname)} finished with rate of {str(count_recieved / (datetime.datetime.now()-start_time).total_seconds() + 0.000001)}[B/s]")
+    print(f"{Colors.yellow_str('[UDP #'+str(thread_num)+']')} rate: {str(count_recieved / ((datetime.datetime.now()-start_time).total_seconds() + 0.000001))}[B/s], recived: {str((num_segs-num_missed)/num_segs * 100)}%")
         
-def download_tcp(dest_addt, data_size):
-    pass
+def download_tcp(dest_addr, data_size, thread_num):
+    start_time = 0
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect(dest_addr)
+        for c in str(data_size):
+            sock.sendall(c.encode())
+        sock.sendall('\n'.encode())
+        start_time = datetime.datetime.now()
+        data = sock.recv(data_size)
+        print(f"{Colors.red_str('[TCP #'+str(thread_num)+']')} rate: {str(len(data) / ((datetime.datetime.now()-start_time).total_seconds() + 0.000001))}[B/s]")
+        
 
 # ---------------------main function---------------------
 def main():

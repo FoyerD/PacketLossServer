@@ -9,12 +9,12 @@ PAYLOAD_TYPE = 0x4
 
 #The formats for packing/unpacking each type
 OFFER_FORMAT = '!IBHH'
-REQUEST_FORMAT = '!IBQ'
+REQUEST_FORMAT = '!QBQ'
 PAYLOAD_FORMAT = '!IBQQ'
 
 #Sizes of each type of message
 OFFER_HEADER_SIZE = 4+1+2+2
-REQUEST_HEADER_SIZE = 4+1+8
+REQUEST_HEADER_SIZE = 8+1+8
 PAYLOAD_HEADER_SIZE = 4+1+8+8
 PAYLOAD_SIZE = 1024 - PAYLOAD_HEADER_SIZE
 
@@ -37,7 +37,11 @@ def pack_request(file_size):
     """Returns a paced bytes object of a request message"""
     return struct.pack(REQUEST_FORMAT, MAGIC_COOKIE, REQUEST_TYPE, file_size)
 
-def pack_payload_tcp(segment_count, curr_segment, payload):
+def pack_payload_udp(segment_count, curr_segment, payload):
+    '''Returns a paced bytes object of a request message'''
+    return struct.pack(PAYLOAD_FORMAT, MAGIC_COOKIE, PAYLOAD_TYPE, segment_count, curr_segment) + payload.encode()
+
+def pack_payload_udp(segment_count, curr_segment, payload):
     '''Returns a paced bytes object of a request message'''
     return struct.pack(PAYLOAD_FORMAT, MAGIC_COOKIE, PAYLOAD_TYPE, segment_count, curr_segment) + payload.encode()
 
@@ -50,5 +54,5 @@ def unpack_offer(msg):
 def unpack_request(msg):
     return struct.unpack(REQUEST_FORMAT, msg)
 
-def unpack_payload_tcp(msg):
+def unpack_payload_udp(msg):
     return struct.unpack(PAYLOAD_FORMAT, msg[0:PAYLOAD_HEADER_SIZE]) + (msg[PAYLOAD_HEADER_SIZE:],)

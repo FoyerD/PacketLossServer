@@ -50,68 +50,68 @@ def start_thread(func, args):
     try:
         thread.start()
     except NameError:
+        #print(Colors.red_str(NameError))
         return None
     return thread
 
 
 # ---------------------thread functions-----------------------
-def listen_tcp(port):
+def listen_tcp(sock):
     """Listens to incoming messages on the given port"""
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind(('', port))
+        while True:
+            # Wait for a connection from a client
             sock.listen(NUM_QUEUED_TCP)
-            while True:
-                # Wait for a connection from a client
-                connection, client_addr = sock.accept()
-                data = connection.recv(Parser.REQUEST_HEADER_SIZE)  # buffer size is 1024 bytes
-                if(len(data) != Parser.REQUEST_HEADER_SIZE):
-                    #print(Colors.red_str(f"Error: size of request msg is not {Parser.REQUEST_HEADER_SIZE}"))
-                    continue
-                cookie, msg_type, file_size = Parser.unpack_request(data)
-                if(cookie != Parser.MAGIC_COOKIE or msg_type != Parser.REQUEST_TYPE):
-                    #print(Colors.red_str(f"Error: THE MAGIC COOKIE IS WRONG! ITS {cookie} != {Parser.MAGIC_COOKIE}"))
-                    continue
-                print(f"Received {Colors.red_str('[TCP]')} request from {Colors.blue_str(str(client_addr))}")
-                start_thread(tcp_upload, (connection, file_size))   
+            connection, client_addr = sock.accept()
+            print(f"Received {Colors.red_str('[TCP]')} request from {Colors.blue_str(str(client_addr))}")
+            start_thread(tcp_upload, (connection,))   
 
-    except NameError:
-        print(Colors.red_str(NameError))
+    except NameError as e:
+        print(Colors.red_str(str(e)))
 
-def listen_udp(port):
+def listen_udp(sock):
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock: 
-            sock.bind(('', port))
-            while True:
-                # Wait for a message from a client
-                data, client_address = sock.recvfrom(Parser.REQUEST_HEADER_SIZE)  # buffer size is 1024 bytes
-                if(len(data) != Parser.REQUEST_HEADER_SIZE):
-                    #print(Colors.red_str(f"Error: size of request msg is not {Parser.REQUEST_HEADER_SIZE}"))
-                    continue
-                cookie, msg_type, file_size = Parser.unpack_request(data)
-                if(cookie != Parser.MAGIC_COOKIE or msg_type != Parser.REQUEST_TYPE):
-                    #print(Colors.red_str(f"Error: THE MAGIC COOKIE IS WRONG! ITS {cookie} != {Parser.MAGIC_COOKIE}"))
-                    continue
-                print(f"Received {Colors.yellow_str('[UDP]')} request from {Colors.blue_str(str(client_address))}")
-                start_thread(udp_upload, (sock, client_address, file_size))   
-    except NameError:
-        print(Colors.red_str(NameError))
+        while True:
+            # Wait for a message from a client
+            data, client_address = sock.recvfrom(Parser.REQUEST_HEADER_SIZE)  # buffer size is 1024 bytes
+            if(len(data) != Parser.REQUEST_HEADER_SIZE):
+                #print(Colors.red_str(f"Error: size of request msg is not {Parser.REQUEST_HEADER_SIZE}"))
+                continue
+            cookie, msg_type, file_size = Parser.unpack_request(data)
+            if(cookie != Parser.MAGIC_COOKIE or msg_type != Parser.REQUEST_TYPE):
+                #print(Colors.red_str(f"Error: THE MAGIC COOKIE IS WRONG! ITS {cookie} != {Parser.MAGIC_COOKIE}"))
+                continue
+            print(f"Received {Colors.yellow_str('[UDP]')} request from {Colors.blue_str(str(client_address))}")
+            start_thread(udp_upload, (sock, client_address, file_size))
+    except NameError as e:
+        print(Colors.red_str(e))
 
 def udp_upload(sock, dest_addr, size):
     try:
         seg_count = ceil(size / Parser.PAYLOAD_SIZE)
         for i, segment in enumerate(data_generator(DATA_TO_SEND, size, Parser.PAYLOAD_SIZE)):
-            sock.sendto(Parser.pack_payload_tcp(seg_count, i, segment), dest_addr)
-    except NameError:
-        print(Colors.red_str(NameError))
+            sock.sendto(Parser.pack_payload_udp(seg_count, i, segment), dest_addr)
+    except NameError as e:
+        print(Colors.red_str(e))
 
-def tcp_upload(sock, size):
+def tcp_upload(sock,):
     try:
-        seg_count = ceil(size / len(DATA_TO_SEND))
-        whole_data = (DATA_TO_SEND * seg_count)[:size]
+        buffer = ''
+        file_size = 0
+        data = ''
+        
+        while(data != b'\n'):
+            data = sock.recv(1)  
+            if(data == b'\n'):
+                file_size = int(buffer)
+            else:
+                buffer = buffer + data.decode()
+        
+        seg_count = ceil(file_size / len(DATA_TO_SEND))
+        whole_data = (DATA_TO_SEND * seg_count)[:file_size]
         sock.sendall(whole_data.encode())
-    except NameError:
-        print(Colors.red_str(NameError))
+    except NameError as e:
+        print(Colors.red_str(e))
 
 def send_broadcast_message(message, port, interval):
     """Constantly sends message on udp through te given port every interval seconds"""
@@ -136,12 +136,16 @@ def main():
     interval = 1  # Interval in seconds
 
     # Start the listening threads
-    tcp_thread = start_thread(listen_tcp, (SERVER_PORT_TCP, ))
+    tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_sock.bind(('', SERVER_PORT_TCP))
+    tcp_thread = start_thread(listen_tcp, (tcp_sock, ))
     if(tcp_thread == None):
         print("Faild to start thread for listening on TCP port")
         return
 
-    udp_thread = start_thread(listen_udp, (SERVER_PORT_UDP, ))
+    udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_sock.bind(('', SERVER_PORT_UDP))
+    udp_thread = start_thread(listen_udp, (udp_sock, ))
     if(udp_thread == None):
         print("Faild to start thread for listening on UDP port")
         return
@@ -154,6 +158,9 @@ def main():
         return
     print(f'Server started, listening on IP address {Colors.purple_str(HOST)}')
     broadcast_thread.join()
+    
+    tcp_sock.close()
+    udp_sock.close()
 
     
 
