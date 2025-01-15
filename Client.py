@@ -65,7 +65,7 @@ def download_udp(dest_addr, data_size, thread_num):
         sock.settimeout(1)
         sock.sendto(Parser.pack_request(data_size), dest_addr)
         start_time = datetime.datetime.now()
-        for i in tqdm(range(math.ceil(data_size / (Parser.PAYLOAD_SIZE + Parser.PAYLOAD_HEADER_SIZE)))):
+        for i in range(math.ceil(data_size / (Parser.PAYLOAD_SIZE + Parser.PAYLOAD_HEADER_SIZE))):
             try:
                 data, client_address = sock.recvfrom(Parser.PAYLOAD_SIZE + Parser.PAYLOAD_HEADER_SIZE)
             except socket.timeout:
@@ -90,7 +90,7 @@ def download_udp(dest_addr, data_size, thread_num):
             else:
                 #print(f"{str(sock.getsockname)}recived {Colors.red_str(str(curr_segment+1))}/{Colors.green_str(str(num_segs))}")
                 pass
-    print(f"{Colors.yellow_str('[UDP #'+str(thread_num)+']')} rate: {str(count_recieved / ((datetime.datetime.now()-start_time).total_seconds() + 0.000001))}[B/s], recived: {str((num_segs-num_missed)/num_segs * 100)}%")
+    print(f"{Colors.yellow_str('[UDP #'+str(thread_num)+']')} rate: {str(count_recieved / ((datetime.datetime.now()-start_time).total_seconds() + 0.000001))}[B/s], recived: {str((count_recieved)/data_size * 100)}%")
         
 def download_tcp(dest_addr, data_size, thread_num):
     start_time = 0
