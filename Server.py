@@ -6,9 +6,9 @@ import threading
 import time
 import subprocess
 import ipaddress
-from Client import CLIENT_PORT_TCP, CLIENT_PORT_UDP
+from Client import CLIENT_PORT_UDP
 
-DATA_TO_SEND = 'SKIBIDI_DATA' #I'm sorry
+DATA_TO_SEND = 'SKIBIDI_DATA' #IMSORRY
 SERVER_PORT_UDP = 34340
 SERVER_PORT_TCP = 34341
 NUM_QUEUED_TCP = 5
@@ -111,7 +111,7 @@ def tcp_upload(sock, size):
     try:
         seg_count = ceil(size / len(DATA_TO_SEND))
         whole_data = (DATA_TO_SEND * seg_count)[:size]
-        sock.send()
+        sock.sendall(whole_data.encode())
     except NameError:
         print(Colors.red_str(NameError))
 
