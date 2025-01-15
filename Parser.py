@@ -19,6 +19,8 @@ PAYLOAD_HEADER_SIZE = 4+1+8+8
 
 PAYLOAD_SIZE = 1024 - PAYLOAD_HEADER_SIZE
 
+
+
 def pack_offer(udp_port, tcp_port):
     '''
     Returns a pakced bytes object of a offer message
