@@ -6,6 +6,7 @@ import threading
 import time
 import subprocess
 import ipaddress
+from Client import CLIENT_PORT_TCP, CLIENT_PORT_UDP
 
 DATA_TO_SEND = 'SKIBIDI_DATA' #I'm sorry
 SERVER_PORT_UDP = 34340
@@ -149,7 +150,7 @@ def main():
 
 
     # Start the broadcast thread
-    broadcast_thread = start_thread(send_broadcast_message, (Parser.pack_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), SERVER_PORT_UDP, interval))
+    broadcast_thread = start_thread(send_broadcast_message, (Parser.pack_offer(SERVER_PORT_UDP, SERVER_PORT_TCP), CLIENT_PORT_UDP, interval))
     if(broadcast_thread == None):
         print("Faild to start thread for broadcasting")
         return
