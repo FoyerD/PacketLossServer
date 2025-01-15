@@ -6,11 +6,9 @@ import threading
 import time
 import subprocess
 import ipaddress
-from Client import CLIENT_PORT_UDP
+from Parser import SERVER_PORT_TCP, SERVER_PORT_UDP, CLIENT_PORT_UDP
 
 DATA_TO_SEND = 'SKIBIDI_DATA' #IMSORRY
-SERVER_PORT_UDP = 34340
-SERVER_PORT_TCP = 34341
 NUM_QUEUED_TCP = 5
 
 
@@ -166,4 +164,4 @@ if __name__ == "__main__":
     HOST = socket.gethostbyname(HOSTNAME)
     MASK = get_subnet_mask(HOST)   
     main()
-# -------end of file---------
+# -------end of file-------

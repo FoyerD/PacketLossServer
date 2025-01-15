@@ -1,9 +1,7 @@
 import Parser
 import socket
 import Colors
-from Server import start_thread
-
-CLIENT_PORT_UDP = 34342
+from Parser import start_thread
 
 # ---------------------helper functions-----------------------
 def get_user_choices():
@@ -63,6 +61,7 @@ def download_udp(sock, dest_addr, data_size):
         num_segs = segment_count
         num_missed += curr_segment - expected_seg
         expected_seg = curr_segment + 1
+        count_recieved += len(data)
         print(f"recived {curr_segment-1}/{num_segs}")
         
 def download_tcp(dest_addt, data_size):
